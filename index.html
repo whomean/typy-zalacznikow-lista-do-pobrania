@@ -23,6 +23,7 @@
       font-size: 2.2em;
       z-index: 10;
       text-shadow: 0 0 10px red, 0 0 20px yellow;
+      cursor: pointer;
     }
     @keyframes blink {
       0% { color: red; }
@@ -87,17 +88,41 @@
       0% { width: 0; }
       100% { width: 100%; }
     }
+    .scanner {
+      position: absolute;
+      top: 10%;
+      right: 5%;
+      width: 250px;
+      background: #111;
+      border: 2px solid lime;
+      padding: 10px;
+      color: lime;
+      font-size: 1em;
+      box-shadow: 0 0 15px lime;
+    }
+    .contact {
+      animation: scan 0.5s linear forwards;
+      opacity: 0;
+    }
+    @keyframes scan {
+      from { opacity: 0; transform: translateX(100px); }
+      to { opacity: 1; transform: translateX(0); }
+    }
     audio {
       display: none;
     }
   </style>
 </head>
 <body>
-  <div class="alert-box" id="mainText">⚠️ INFEKCJA WYKRYTA ⚠️<br>TWÓJ TELEFON ZOSTAŁ ZAATAKOWANY!</div>
+  <div class="alert-box" id="mainText">⚠️ INFEKCJA WYKRYTA ⚠️<br>KLIKNIJ ABY ZATRZYMAĆ ATAK!</div>
   <div class="matrix"></div>
   <div class="progress-container">
     🔒 SZYFROWANIE DANYCH TELEFONU...
     <div class="progress-bar" id="progressBar"></div>
+  </div>
+  <div class="scanner" id="scanner" style="display:none">
+    📞 SKANOWANIE KONTAKTÓW...<br>
+    <div id="contactList"></div>
   </div>
   <audio id="alarmSound" preload="auto">
     <source src="https://www.soundjay.com/button/sounds/beep-07.mp3" type="audio/mpeg">
@@ -132,9 +157,31 @@
       intervalTitle = setInterval(() => {
         document.title = titles[index++ % titles.length];
       }, 400);
+
+      // Scanner simulation
+      const scanner = document.getElementById("scanner");
+      const contactList = document.getElementById("contactList");
+      scanner.style.display = "block";
+      const fakeContacts = [
+        "📱 Krzysztof Błażejczyk",
+        "📱 Anna Racka",
+        "📱 Mama",
+        "📱 Ewa Zielińska",
+        "📱 Kominiarz",
+        "📱 Play24",
+        "📱 Radosław Dorochowicz"
+      ];
+      fakeContacts.forEach((name, i) => {
+        setTimeout(() => {
+          const div = document.createElement("div");
+          div.className = "contact";
+          div.textContent = name;
+          contactList.appendChild(div);
+        }, i * 600);
+      });
     }
 
-    document.body.addEventListener('click', () => {
+    document.getElementById('mainText').addEventListener('click', () => {
       startChaos();
     }, { once: true });
   </script>
