@@ -1,221 +1,100 @@
 <!DOCTYPE html>
 <html lang="pl">
 <head>
-  <meta charset="UTF-8">
-  <title>INFEKCJA WYKRYTA!</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>UWAGA! Zainfekowano urządzenie</title>
   <style>
-    html, body {
-      margin: 0;
-      padding: 0;
-      background-color: white;
-      color: lime;
-      font-family: monospace;
-      overflow: hidden;
+    html,body{
+      margin:0;
+      padding:0;
+      height:100%;
+      width:100%;
     }
-    #mainContent {
-      display: none;
+    body{
+      display:flex;
+      flex-direction:column;
+      justify-content:center;
+      align-items:center;
+      background:red;
+      color:#fff;
+      font-family:Arial, Helvetica, sans-serif;
+      text-align:center;
+      animation:flash 0.6s infinite;
+      overflow:hidden;
     }
-    .alert-box {
-      position: absolute;
-      top: 30%;
-      left: 50%;
-      transform: translate(-50%, -50%);
-      text-align: center;
-      animation: blink 0.5s infinite alternate;
-      font-size: 2.2em;
-      z-index: 10;
-      text-shadow: 0 0 10px red, 0 0 20px yellow;
-      cursor: pointer;
+    @keyframes flash{
+      0%{background:red;}
+      50%{background:black;}
+      100%{background:red;}
     }
-    @keyframes blink {
-      0% { color: red; }
-      100% { color: yellow; }
+    h1{
+      font-size:calc(8vw + 8vh);
+      margin:0;
+      text-shadow:0 0 12px #000;
     }
-    .matrix {
-      position: absolute;
-      width: 100%;
-      height: 100%;
-      top: 0;
-      left: 0;
-      pointer-events: none;
-      background: repeating-linear-gradient(
-        to bottom,
-        rgba(0,255,0,0.3),
-        rgba(0,255,0,0.3) 1px,
-        transparent 1px,
-        transparent 4px
-      );
-      animation: scroll 0.6s linear infinite;
+    p{
+      font-size:6vw;
+      margin:0;
     }
-    @keyframes scroll {
-      from { background-position: 0 0; }
-      to { background-position: 0 100%; }
-    }
-    @keyframes shake {
-      0% { transform: translate(1px, 1px) rotate(0deg); }
-      10% { transform: translate(-1px, -2px) rotate(-1deg); }
-      20% { transform: translate(-3px, 0px) rotate(1deg); }
-      30% { transform: translate(3px, 2px) rotate(0deg); }
-      40% { transform: translate(1px, -1px) rotate(1deg); }
-      50% { transform: translate(-1px, 2px) rotate(-1deg); }
-      60% { transform: translate(-3px, 1px) rotate(0deg); }
-      70% { transform: translate(3px, 1px) rotate(-1deg); }
-      80% { transform: translate(-1px, -1px) rotate(1deg); }
-      90% { transform: translate(1px, 2px) rotate(0deg); }
-      100% { transform: translate(1px, -2px) rotate(-1deg); }
-    }
-    body.shake {
-      animation: shake 0.5s infinite;
-    }
-    .progress-container {
-      position: absolute;
-      bottom: 50px;
-      left: 50%;
-      transform: translateX(-50%);
-      width: 80%;
-      background: #111;
-      border: 2px solid lime;
-      padding: 10px;
-      text-align: center;
-      font-size: 1.2em;
-      color: red;
-    }
-    .progress-bar {
-      width: 0;
-      height: 20px;
-      background: red;
-      animation: fill 10s linear forwards;
-    }
-    @keyframes fill {
-      0% { width: 0; }
-      100% { width: 100%; }
-    }
-    .scanner {
-      position: absolute;
-      top: 10%;
-      right: 5%;
-      width: 250px;
-      background: #111;
-      border: 2px solid lime;
-      padding: 10px;
-      color: lime;
-      font-size: 1em;
-      box-shadow: 0 0 15px lime;
-    }
-    .contact {
-      animation: scan 0.5s linear forwards;
-      opacity: 0;
-    }
-    @keyframes scan {
-      from { opacity: 0; transform: translateX(100px); }
-      to { opacity: 1; transform: translateX(0); }
-    }
-    #stopBtn {
-      position: absolute;
-      top: 10px;
-      left: 10px;
-      padding: 10px 20px;
-      background: red;
-      color: white;
-      font-weight: bold;
-      border: none;
-      cursor: pointer;
-      z-index: 100;
-    }
-    audio {
-      display: none;
-    }
+    .hidden{display:none;}
   </style>
 </head>
 <body>
-  <div id="mainContent">
-    <button id="stopBtn">🛑 ZATRZYMAJ</button>
-    <div class="alert-box" id="mainText">⚠️ INFEKCJA WYKRYTA ⚠️<br>KLIKNIJ ABY ZATRZYMAĆ ATAK!</div>
-    <div class="matrix"></div>
-    <div class="progress-container">
-      🔒 SZYFROWANIE DANYCH TELEFONU...
-      <div class="progress-bar" id="progressBar"></div>
-    </div>
-    <div class="scanner" id="scanner" style="display:none">
-      📞 SKANOWANIE KONTAKTÓW...<br>
-      <div id="contactList"></div>
-    </div>
-  </div>
-  <audio id="alarmSound" preload="auto">
-    <source src="https://www.soundjay.com/button/sounds/beep-07.mp3" type="audio/mpeg">
+  <h1>⚠️ UWAGA!</h1>
+  <p>Twoje urządzenie<br />ZOSTAŁO ZAINFEKOWANE</p>
+
+  <!-- Szybki, piskliwy dźwięk alarmu (możesz podmienić plik na własny) -->
+  <audio id="alarm" loop class="hidden">
+    <source src="alarm.mp3" type="audio/mpeg" />
   </audio>
+
   <script>
-    let intervalTitle;
-    let alertIntervals = [];
-    function startChaos() {
-      if (navigator.vibrate) {
-        navigator.vibrate([1000, 300, 1000, 300, 1500, 300, 1500, 500, 2000]);
-      }
+    (function () {
+      const VIBRATE_PATTERN = [600, 200, 600, 200, 600, 600, 200];
 
-      const sound = document.getElementById("alarmSound");
-      sound.volume = 1.0;
-      sound.play().catch(() => {
-        console.warn("Dźwięk nie mógł zostać automatycznie odtworzony.");
+      // Uruchom straszenie po pełnym wczytaniu
+      window.addEventListener("load", () => {
+        // 1) Spróbuj odtworzyć dźwięk
+        const alarm = document.getElementById("alarm");
+        if (alarm) {
+          const p = alarm.play();
+          if (p !== undefined) {
+            p.catch(() => {
+              /* autoplay może zostać zablokowany – wtedy dźwięk uruchomi się dopiero po pierwszym tapnięciu */
+            });
+          }
+        }
+
+        // 2) Wibracje (działa na większości Androidów, nie na iOS)
+        if ("vibrate" in navigator) {
+          navigator.vibrate(VIBRATE_PATTERN);
+          setInterval(() => navigator.vibrate(VIBRATE_PATTERN), 4000);
+        }
+
+        // 3) Seria alertów – nachodzące modale blokujące
+        for (let i = 0; i < 3; i++) {
+          setTimeout(() => {
+            alert("⚠️ UWAGA! Twoje urządzenie zostało ZAINFEKOWANE!");
+          }, i * 1500);
+        }
+
+        // 4) Dodatkowe minipopu‑py (w razie pozwolenia przez przeglądarkę mobilną)
+        setInterval(() => {
+          const w = window.open(
+            "",
+            "",
+            "width=260,height=120,menubar=0,toolbar=0,status=0"
+          );
+          if (w) {
+            w.document.write(
+              '<body style="margin:0;display:flex;justify-content:center;align-items:center;background:red;color:white;font-family:Arial;font-size:18px;">⚠️ Zainfekowano!</body>'
+            );
+            setTimeout(() => w.close(), 3000);
+          }
+        }, 5000);
       });
-
-      document.body.classList.add("shake");
-
-      for (let i = 0; i < 5; i++) {
-        let timeout = setTimeout(() => {
-          alert("⚠️ OSTRZEŻENIE: DANE WYEKSPORTOWANE ⚠️");
-        }, i * 1200);
-        alertIntervals.push(timeout);
-      }
-
-      window.onbeforeunload = function() {
-        return "Czy na pewno chcesz opuścić tę stronę? Możesz stracić dane!";
-      };
-
-      let titles = ["ZAINFEKOWANO!", "TWÓJ TELEFON JEST ATAKOWANY!", "NIEBEZPIECZEŃSTWO!", "⚠️⚠️⚠️ PANIKA ⚠️⚠️⚠️"];
-      let index = 0;
-      intervalTitle = setInterval(() => {
-        document.title = titles[index++ % titles.length];
-      }, 400);
-
-      const scanner = document.getElementById("scanner");
-      const contactList = document.getElementById("contactList");
-      scanner.style.display = "block";
-      const fakeContacts = [
-        "📱 Krzysztof Błażejczyk",
-        "📱 Anna Racka",
-        "📱 Mama",
-        "📱 Ewa Zielińska",
-        "📱 Kominiarz",
-        "📱 Play24",
-        "📱 Radosław Dorochowicz"
-      ];
-      fakeContacts.forEach((name, i) => {
-        setTimeout(() => {
-          const div = document.createElement("div");
-          div.className = "contact";
-          div.textContent = name;
-          contactList.appendChild(div);
-        }, i * 600);
-      });
-    }
-
-    document.getElementById('mainText').addEventListener('click', () => {
-      startChaos();
-    }, { once: true });
-
-    document.getElementById("stopBtn").addEventListener("click", () => {
-      clearInterval(intervalTitle);
-      alertIntervals.forEach(clearTimeout);
-      window.onbeforeunload = null;
-      document.body.classList.remove("shake");
-      document.title = "ZATRZYMANO";
-    });
-
-    setTimeout(() => {
-      document.body.style.backgroundColor = "black";
-      document.getElementById("mainContent").style.display = "block";
-    }, 1000);
+    })();
   </script>
 </body>
 </html>
